@@ -205,3 +205,63 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# ============================================
+# MiniIAM Project Specific
+# ============================================
+
+# Node modules and frontend builds
+node_modules/
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+frontend/build/
+
+# Environment files
+.env.local
+.env.*.local
+
+# Certificates and keys (SECURITY CRITICAL)
+certs/
+*.key
+*.crt
+*.pem
+*.p12
+*.jks
+*.pfx
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Kubernetes secrets (never commit real secrets!)
+# IMPORTANT: Uncomment in production
+# k8s/02-secrets.yaml
+
+# Logs
+logs/
+*.log
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Backup files
+*.bak
+*.backup
+backups/
+
+# Docker build artifacts
+docker-build/
+
+# Test coverage
+coverage/
+.nyc_output/
