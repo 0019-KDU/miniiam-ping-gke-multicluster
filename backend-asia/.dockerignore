@@ -1,0 +1,46 @@
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+*.egg
+*.egg-info
+dist
+build
+venv
+.env
+
+# Ignore git files
+.git
+.gitignore
+
+# Ignore documentation
+*.md
+README.md
+LICENSE
+
+# Ignore IDE files
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# Ignore OS files
+.DS_Store
+Thumbs.db
+
+# Ignore docker files
+docker-compose*.yml
+Dockerfile
+.dockerignore
+
+# Ignore build scripts
+build-images.*
+start-weather-dashboard.*
+
+# Ignore other directories
+backend-eu/
+weather-dashboard/
+frontend/
