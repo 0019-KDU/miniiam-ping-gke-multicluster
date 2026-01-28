@@ -5,8 +5,6 @@
 #       After auth: PingAccess → React App / Backend API
 ###############################################################################
 
-version: '3.8'
-
 services:
   #############################################################################
   # PingDirectory - LDAP User Store
@@ -29,6 +27,8 @@ services:
           memory: 1.5G
         reservations:
           memory: 768M
+    tmpfs:
+      - /run/secrets
     volumes:
       - pingdirectory-data:/opt/out
     ports:
@@ -38,11 +38,11 @@ services:
     networks:
       - pingnet
     healthcheck:
-      test: ["CMD", "/opt/server/bin/ldapsearch", "--baseDN", "", "--searchScope", "base", "(objectClass=*)"]
+      test: ["CMD", "curl", "-k", "https://localhost:1443/available-or-degraded-state"]
       interval: 30s
       timeout: 10s
-      retries: 10
-      start_period: 120s
+      retries: 15
+      start_period: 180s
 
   #############################################################################
   # PingFederate - Federation Server (OIDC Provider)
