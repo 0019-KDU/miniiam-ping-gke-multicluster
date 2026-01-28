@@ -1,0 +1,23 @@
+# Base DN and Organizational Units
+dn: dc=example,dc=com
+objectClass: top
+objectClass: domain
+dc: example
+
+dn: ou=People,dc=example,dc=com
+objectClass: top
+objectClass: organizationalUnit
+ou: People
+description: User accounts
+
+dn: ou=Groups,dc=example,dc=com
+objectClass: top
+objectClass: organizationalUnit
+ou: Groups
+description: Groups for role-based access control
+
+dn: ou=Services,dc=example,dc=com
+objectClass: top
+objectClass: organizationalUnit
+ou: Services
+description: Service accounts

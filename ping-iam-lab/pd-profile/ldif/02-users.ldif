@@ -1,0 +1,79 @@
+# Test Users for Ping IAM Lab
+
+# User: abishek - Has both admin and devops roles
+dn: uid=abishek,ou=People,dc=example,dc=com
+objectClass: top
+objectClass: person
+objectClass: organizationalPerson
+objectClass: inetOrgPerson
+uid: abishek
+cn: Abishek Kumar
+sn: Kumar
+givenName: Abishek
+mail: abishek@example.com
+userPassword: Password123!
+employeeType: full-time
+departmentNumber: Engineering
+title: Senior DevOps Engineer
+
+# User: john - Has only devops role
+dn: uid=john,ou=People,dc=example,dc=com
+objectClass: top
+objectClass: person
+objectClass: organizationalPerson
+objectClass: inetOrgPerson
+uid: john
+cn: John Smith
+sn: Smith
+givenName: John
+mail: john@example.com
+userPassword: Password123!
+employeeType: full-time
+departmentNumber: Engineering
+title: DevOps Engineer
+
+# User: sarah - Has only admin role
+dn: uid=sarah,ou=People,dc=example,dc=com
+objectClass: top
+objectClass: person
+objectClass: organizationalPerson
+objectClass: inetOrgPerson
+uid: sarah
+cn: Sarah Johnson
+sn: Johnson
+givenName: Sarah
+mail: sarah@example.com
+userPassword: Password123!
+employeeType: full-time
+departmentNumber: IT
+title: System Administrator
+
+# User: guest - No special roles
+dn: uid=guest,ou=People,dc=example,dc=com
+objectClass: top
+objectClass: person
+objectClass: organizationalPerson
+objectClass: inetOrgPerson
+uid: guest
+cn: Guest User
+sn: User
+givenName: Guest
+mail: guest@example.com
+userPassword: Password123!
+employeeType: contractor
+departmentNumber: External
+title: Guest
+
+# Service Account for PingFederate
+dn: uid=pingfederate,ou=Services,dc=example,dc=com
+objectClass: top
+objectClass: person
+objectClass: organizationalPerson
+objectClass: inetOrgPerson
+uid: pingfederate
+cn: PingFederate Service
+sn: Service
+givenName: PingFederate
+mail: pingfederate@example.com
+userPassword: ServicePassword123!
+description: Service account for PingFederate LDAP binding

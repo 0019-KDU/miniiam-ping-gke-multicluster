@@ -1,0 +1,186 @@
+###############################################################################
+# Ping Identity IAM Lab - Docker Compose
+# 
+# Flow: Browser → PingAccess → PingFederate (OIDC) → PingDirectory (LDAP)
+#       After auth: PingAccess → React App / Backend API
+###############################################################################
+
+version: '3.8'
+
+services:
+  #############################################################################
+  # PingDirectory - LDAP User Store
+  #############################################################################
+  pingdirectory:
+    image: pingidentity/pingdirectory:edge
+    container_name: pingdirectory
+    hostname: pingdirectory
+    environment:
+      - PING_IDENTITY_ACCEPT_EULA=${PING_IDENTITY_ACCEPT_EULA}
+      - PING_IDENTITY_DEVOPS_USER=${PING_IDENTITY_DEVOPS_USER}
+      - PING_IDENTITY_DEVOPS_KEY=${PING_IDENTITY_DEVOPS_KEY}
+      - ROOT_USER_DN=cn=administrator
+      - ROOT_USER_PASSWORD=2FederateM0re
+      - USER_BASE_DN=dc=example,dc=com
+      - MAX_HEAP_SIZE=384m
+    deploy:
+      resources:
+        limits:
+          memory: 1.5G
+        reservations:
+          memory: 768M
+    volumes:
+      - pingdirectory-data:/opt/out
+    ports:
+      - "1389:1389"    # LDAP
+      - "1636:1636"    # LDAPS
+      - "1443:1443"    # HTTPS Console
+    networks:
+      - pingnet
+    healthcheck:
+      test: ["CMD", "/opt/server/bin/ldapsearch", "--baseDN", "", "--searchScope", "base", "(objectClass=*)"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 120s
+
+  #############################################################################
+  # PingFederate - Federation Server (OIDC Provider)
+  #############################################################################
+  pingfederate:
+    image: pingidentity/pingfederate:latest
+    container_name: pingfederate
+    hostname: pingfederate
+    environment:
+      - PING_IDENTITY_ACCEPT_EULA=${PING_IDENTITY_ACCEPT_EULA}
+      - PING_IDENTITY_DEVOPS_USER=${PING_IDENTITY_DEVOPS_USER}
+      - PING_IDENTITY_DEVOPS_KEY=${PING_IDENTITY_DEVOPS_KEY}
+      - PF_ADMIN_USER_PASSWORD=PingFederate123!
+      - PF_LOG_LEVEL=INFO
+      - PF_ADMIN_PUBLIC_HOSTNAME=143.198.224.95
+      - PF_ENGINE_PUBLIC_HOSTNAME=143.198.224.95
+      - OPERATIONAL_MODE=STANDALONE
+      - MAX_HEAP_SIZE=1024m
+    volumes:
+      - pingfederate-data:/opt/out
+    ports:
+      - "9999:9999"    # Admin Console (HTTPS)
+      - "9031:9031"    # Runtime Engine (HTTPS)
+    networks:
+      - pingnet
+    depends_on:
+      pingdirectory:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-k", "-f", "https://localhost:9031/pf/heartbeat.ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 90s
+
+  #############################################################################
+  # PingAccess - API Gateway / Policy Enforcement Point
+  #############################################################################
+  pingaccess:
+    image: pingidentity/pingaccess:latest
+    container_name: pingaccess
+    hostname: pingaccess
+    environment:
+      - PING_IDENTITY_ACCEPT_EULA=${PING_IDENTITY_ACCEPT_EULA}
+      - PING_IDENTITY_DEVOPS_USER=${PING_IDENTITY_DEVOPS_USER}
+      - PING_IDENTITY_DEVOPS_KEY=${PING_IDENTITY_DEVOPS_KEY}
+      - PA_ADMIN_PASSWORD=PingAccess123!
+      - PA_ADMIN_PUBLIC_HOSTNAME=143.198.224.95
+      - OPERATIONAL_MODE=STANDALONE
+      - MAX_HEAP_SIZE=512m
+    volumes:
+      - pingaccess-data:/opt/out
+    ports:
+      - "9000:9000"    # Admin Console (HTTPS)
+      - "3000:3000"    # Runtime Engine (HTTP - for local dev)
+      - "3443:3443"    # Runtime Engine (HTTPS)
+    networks:
+      - pingnet
+    depends_on:
+      pingfederate:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-k", "-f", "https://localhost:9000/pa/heartbeat.ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 60s
+
+  #############################################################################
+  # React App - Frontend (served behind PingAccess)
+  #############################################################################
+  react-app:
+    build:
+      context: ./react-app
+      dockerfile: Dockerfile
+    container_name: react-app
+    hostname: react-app
+    environment:
+      - NODE_ENV=production
+      - VITE_API_BASE_URL=http://backend-api:8080
+      - VITE_PA_RUNTIME_URL=${PA_RUNTIME_URL:-http://localhost:3000}
+    ports:
+      - "5173:80"      # Direct access for debugging (nginx serves built app)
+    networks:
+      - pingnet
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
+  #############################################################################
+  # Backend API - Token-Protected Resource Server
+  #############################################################################
+  backend-api:
+    build:
+      context: ./backend-api
+      dockerfile: Dockerfile
+    container_name: backend-api
+    hostname: backend-api
+    environment:
+      - NODE_ENV=production
+      - PORT=8080
+      - PF_ISSUER_URL=https://pingfederate:9031
+      - PF_JWKS_URL=https://pingfederate:9031/pf/JWKS
+      - TRUSTED_ISSUERS=${TRUSTED_ISSUERS:-https://localhost:9031,https://pingfederate:9031}
+      - JWT_AUDIENCE=${JWT_AUDIENCE:-react-app}
+      - LOG_LEVEL=${API_LOG_LEVEL:-info}
+    ports:
+      - "8080:8080"    # Direct access for debugging
+    networks:
+      - pingnet
+    depends_on:
+      pingfederate:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
+#############################################################################
+# Networks
+#############################################################################
+networks:
+  pingnet:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16
+
+#############################################################################
+# Volumes - Persistent data
+#############################################################################
+volumes:
+  pingdirectory-data:
+    driver: local
+  pingfederate-data:
+    driver: local
+  pingaccess-data:
+    driver: local

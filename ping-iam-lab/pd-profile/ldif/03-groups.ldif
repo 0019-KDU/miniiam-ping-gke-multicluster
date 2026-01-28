@@ -1,0 +1,30 @@
+# Groups for Role-Based Access Control
+
+# Admin Group
+dn: cn=admin,ou=Groups,dc=example,dc=com
+objectClass: top
+objectClass: groupOfNames
+cn: admin
+description: Administrators with full access
+member: uid=abishek,ou=People,dc=example,dc=com
+member: uid=sarah,ou=People,dc=example,dc=com
+
+# DevOps Group
+dn: cn=devops,ou=Groups,dc=example,dc=com
+objectClass: top
+objectClass: groupOfNames
+cn: devops
+description: DevOps engineers with deployment access
+member: uid=abishek,ou=People,dc=example,dc=com
+member: uid=john,ou=People,dc=example,dc=com
+
+# Users Group (all authenticated users)
+dn: cn=users,ou=Groups,dc=example,dc=com
+objectClass: top
+objectClass: groupOfNames
+cn: users
+description: All authenticated users
+member: uid=abishek,ou=People,dc=example,dc=com
+member: uid=john,ou=People,dc=example,dc=com
+member: uid=sarah,ou=People,dc=example,dc=com
+member: uid=guest,ou=People,dc=example,dc=com

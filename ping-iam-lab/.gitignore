@@ -1,0 +1,54 @@
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# License files - NEVER commit these
+licenses/*.lic
+licenses/**/*.lic
+
+# Secrets
+secrets/
+*.secret
+*.key
+*.pem
+*.p12
+*.jks
+
+# Data directories (Docker volumes)
+data/
+*-data/
+
+# Logs
+logs/
+*.log
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Build outputs
+dist/
+build/
+*.tsbuildinfo
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker
+*.tar
+
+# Temporary files
+tmp/
+temp/
+*.tmp
