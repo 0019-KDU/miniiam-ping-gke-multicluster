@@ -20,13 +20,13 @@ services:
       - ROOT_USER_DN=cn=administrator
       - ROOT_USER_PASSWORD=2FederateM0re
       - USER_BASE_DN=dc=example,dc=com
-      - MAX_HEAP_SIZE=384m
+      - MAX_HEAP_SIZE=768m
     deploy:
       resources:
         limits:
-          memory: 1.5G
+          memory: 2G
         reservations:
-          memory: 768M
+          memory: 1G
     tmpfs:
       - /run/secrets
     volumes:
@@ -41,6 +41,7 @@ services:
       test: ["CMD", "curl", "-k", "https://localhost:1443/available-or-degraded-state"]
       interval: 30s
       timeout: 10s
+      
       retries: 15
       start_period: 180s
 
