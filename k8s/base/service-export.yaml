@@ -1,0 +1,54 @@
+# =============================================================================
+# ServiceExport - Multi-Cluster Services (MCS)
+# These exports make services discoverable across clusters
+# Deploy to BOTH clusters (gke-asia and gke-europe)
+#
+# After export, services are accessible at:
+#   <service>.<namespace>.svc.clusterset.local
+#
+# Example:
+#   pingdirectory.ping-iam.svc.clusterset.local
+# =============================================================================
+
+---
+# PingDirectory - Required for cross-cluster replication
+apiVersion: net.gke.io/v1
+kind: ServiceExport
+metadata:
+  name: pingdirectory
+  namespace: ping-iam
+---
+# PingDirectory Cluster Service (headless) - for replication
+apiVersion: net.gke.io/v1
+kind: ServiceExport
+metadata:
+  name: pingdirectory-cluster
+  namespace: ping-iam
+---
+# PingFederate Engine - OIDC runtime
+apiVersion: net.gke.io/v1
+kind: ServiceExport
+metadata:
+  name: pingfederate-engine
+  namespace: ping-iam
+---
+# PingAccess Engine - API Gateway runtime
+apiVersion: net.gke.io/v1
+kind: ServiceExport
+metadata:
+  name: pingaccess-engine
+  namespace: ping-iam
+---
+# React App - Frontend
+apiVersion: net.gke.io/v1
+kind: ServiceExport
+metadata:
+  name: react-app
+  namespace: ping-iam
+---
+# Backend API
+apiVersion: net.gke.io/v1
+kind: ServiceExport
+metadata:
+  name: backend-api
+  namespace: ping-iam

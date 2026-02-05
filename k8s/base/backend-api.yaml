@@ -1,0 +1,80 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend-api
+  namespace: ping-iam
+  labels:
+    app: backend-api
+    app.kubernetes.io/name: backend-api
+    app.kubernetes.io/part-of: ping-iam
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: backend-api
+  template:
+    metadata:
+      labels:
+        app: backend-api
+        app.kubernetes.io/name: backend-api
+      annotations:
+        sidecar.istio.io/inject: "true"
+    spec:
+      containers:
+        - name: backend-api
+          image: asia-southeast1-docker.pkg.dev/bold-lantern-480305-k3/ping-iam/backend-api:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8080
+              name: http
+          env:
+            - name: NODE_ENV
+              value: "production"
+            - name: PORT
+              value: "8080"
+            - name: PF_ISSUER_URL
+              value: "https://pingfederate-engine.ping-iam.svc.cluster.local:9031"
+            - name: PF_JWKS_URL
+              value: "https://pingfederate-engine.ping-iam.svc.cluster.local:9031/pf/JWKS"
+            - name: TRUSTED_ISSUERS
+              value: "https://pingfederate-engine.ping-iam.svc.cluster.local:9031"
+            - name: JWT_AUDIENCE
+              value: "react-app"
+            - name: LOG_LEVEL
+              value: "info"
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "256Mi"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend-api
+  namespace: ping-iam
+  labels:
+    app: backend-api
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8080
+      targetPort: 8080
+      protocol: TCP
+      name: http
+  selector:
+    app: backend-api

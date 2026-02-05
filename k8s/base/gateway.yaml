@@ -1,0 +1,103 @@
+# =============================================================================
+# Multi-Cluster Gateway API Configuration
+# Deploy to MCI config cluster (gke-asia) only
+#
+# Architecture:
+#   Internet → External LB (35.186.236.153) → Gateway → Services
+#
+# Traffic Flow for OIDC:
+#   User → PingAccess Engine → PingFederate Engine → PingDirectory
+#        → React App / Backend API
+# =============================================================================
+apiVersion: gateway.networking.k8s.io/v1beta1
+kind: Gateway
+metadata:
+  name: ping-iam-gateway
+  namespace: ping-iam
+  annotations:
+    # Static IP from Terraform (load_balancer_ip)
+    networking.gke.io/address-name: "ping-iam-external-ip"
+spec:
+  # GKE Multi-Cluster Gateway Class for external traffic
+  gatewayClassName: gke-l7-global-external-managed-mc
+  listeners:
+    # HTTP listener (port 80)
+    - name: http
+      protocol: HTTP
+      port: 80
+      allowedRoutes:
+        namespaces:
+          from: Same
+
+---
+# =============================================================================
+# HTTPRoute - Main Application Route
+# All traffic goes through PingAccess Engine (API Gateway)
+# PingAccess handles authentication and routes to backend services
+# =============================================================================
+apiVersion: gateway.networking.k8s.io/v1beta1
+kind: HTTPRoute
+metadata:
+  name: pingaccess-main-route
+  namespace: ping-iam
+  labels:
+    app.kubernetes.io/name: pingaccess-engine
+    app.kubernetes.io/component: runtime
+spec:
+  parentRefs:
+    - name: ping-iam-gateway
+      namespace: ping-iam
+  rules:
+    # Route all traffic to PingAccess Engine
+    # PingAccess will handle routing to React App, Backend API based on its config
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      backendRefs:
+        - name: pingaccess-engine
+          port: 3000
+
+---
+# =============================================================================
+# HTTPRoute - PingFederate OIDC Endpoints
+# Direct access to PingFederate for OIDC flows
+# Path: /pf/*, /.well-known/*, /as/*
+# =============================================================================
+apiVersion: gateway.networking.k8s.io/v1beta1
+kind: HTTPRoute
+metadata:
+  name: pingfederate-oidc-route
+  namespace: ping-iam
+  labels:
+    app.kubernetes.io/name: pingfederate-engine
+    app.kubernetes.io/component: runtime
+spec:
+  parentRefs:
+    - name: ping-iam-gateway
+      namespace: ping-iam
+  rules:
+    # OIDC well-known endpoint
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /.well-known
+      backendRefs:
+        - name: pingfederate-engine
+          port: 9031
+    # PingFederate endpoints
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /pf
+      backendRefs:
+        - name: pingfederate-engine
+          port: 9031
+    # OAuth/OIDC Authorization Server endpoints
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /as
+      backendRefs:
+        - name: pingfederate-engine
+          port: 9031

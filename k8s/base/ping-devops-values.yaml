@@ -1,0 +1,276 @@
+# =============================================================================
+# Ping DevOps Helm Chart Values
+# Chart: pingidentity/ping-devops (v0.11.16)
+# Docs: https://helm.pingidentity.com/
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Global Configuration
+# -----------------------------------------------------------------------------
+global:
+  # Add release name to resources
+  addReleaseNameToResource: none
+
+  # Environment variables for all products
+  envs:
+    PING_IDENTITY_ACCEPT_EULA: "YES"
+
+  # Load DevOps credentials from secret for all products
+  secretEnvs:
+    - secretRef:
+        name: devops-secret
+
+  # Image configuration
+  image:
+    repository: pingidentity
+    pullPolicy: IfNotPresent
+    tag: "2512"  # Latest stable
+
+  # Ingress disabled - using Gateway API
+  ingress:
+    enabled: false
+
+  # Labels for all resources
+  labels:
+    app.kubernetes.io/part-of: ping-iam
+
+  # Annotations for Istio sidecar
+  annotations:
+    # Allow init containers to access network without proxy
+    sidecar.istio.io/interceptionMode: TPROXY
+    traffic.sidecar.istio.io/includeInboundPorts: ""
+    traffic.sidecar.istio.io/excludeOutboundPorts: "1389,1636,1443,9999,9031,9000,3000"
+
+# -----------------------------------------------------------------------------
+# PingDirectory - LDAP User Store
+# Industry Best Practice: Keep Istio sidecar, exclude LDAP ports from interception
+# -----------------------------------------------------------------------------
+pingdirectory:
+  enabled: true
+  name: pingdirectory
+
+  workload:
+    type: StatefulSet
+    # Istio sidecar annotations - KEEP sidecar but EXCLUDE LDAP ports
+    annotations:
+      sidecar.istio.io/inject: "true"
+      # Exclude LDAP ports from Istio proxy (industry standard for LDAP)
+      traffic.sidecar.istio.io/excludeOutboundPorts: "1389,1636,8989"
+      traffic.sidecar.istio.io/excludeInboundPorts: "1389,1636,8989"
+
+  container:
+    replicaCount: 1
+    resources:
+      requests:
+        cpu: 500m
+        memory: 1Gi
+      limits:
+        cpu: 2
+        memory: 2Gi
+
+  envs:
+    ROOT_USER_DN: "cn=administrator"
+    ROOT_USER_PASSWORD: "2FederateM0re"
+    USER_BASE_DN: "dc=example,dc=com"
+    MAX_HEAP_SIZE: "768m"
+
+  services:
+    ldap:
+      servicePort: 1389
+      containerPort: 1389
+      dataService: true
+    ldaps:
+      servicePort: 1636
+      containerPort: 1636
+      dataService: true
+    https:
+      servicePort: 1443
+      containerPort: 1443
+      dataService: true
+    replication:
+      servicePort: 8989
+      containerPort: 8989
+      clusterService: true
+
+  persistentvolume:
+    enabled: true
+    volumes:
+      out:
+        mountPath: /opt/out
+        persistentVolumeClaim:
+          accessModes:
+            - ReadWriteOnce
+          storageClassName: standard-rwo
+          resources:
+            requests:
+              storage: 5Gi
+
+# -----------------------------------------------------------------------------
+# PingFederate Admin - Federation Server Admin Console
+# -----------------------------------------------------------------------------
+pingfederate-admin:
+  enabled: true
+  name: pingfederate-admin
+
+  workload:
+    type: StatefulSet
+
+  container:
+    replicaCount: 1
+    resources:
+      requests:
+        cpu: 500m
+        memory: 1Gi
+      limits:
+        cpu: 2
+        memory: 2Gi
+
+  envs:
+    PF_ADMIN_USER_PASSWORD: "PingFederate123!"
+    PF_LOG_LEVEL: "INFO"
+    OPERATIONAL_MODE: "STANDALONE"
+    MAX_HEAP_SIZE: "1024m"
+
+  services:
+    https:
+      servicePort: 9999
+      containerPort: 9999
+      dataService: true
+
+  persistentvolume:
+    enabled: true
+    volumes:
+      out:
+        mountPath: /opt/out
+        persistentVolumeClaim:
+          accessModes:
+            - ReadWriteOnce
+          storageClassName: standard-rwo
+          resources:
+            requests:
+              storage: 2Gi
+
+# -----------------------------------------------------------------------------
+# PingFederate Engine - Federation Server Runtime
+# -----------------------------------------------------------------------------
+pingfederate-engine:
+  enabled: true
+  name: pingfederate-engine
+
+  # Disable Istio sidecar at deployment level
+  annotations:
+    sidecar.istio.io/inject: "false"
+
+  # Disable Istio sidecar at pod template level
+  workload:
+    annotations:
+      sidecar.istio.io/inject: "false"
+
+  container:
+    replicaCount: 1
+    resources:
+      requests:
+        cpu: 500m
+        memory: 1Gi
+      limits:
+        cpu: 2
+        memory: 2Gi
+
+  envs:
+    PF_LOG_LEVEL: "INFO"
+    OPERATIONAL_MODE: "STANDALONE"
+    MAX_HEAP_SIZE: "1024m"
+    # Cluster configuration
+    PF_ADMIN_PUBLIC_HOSTNAME: "pingfederate-admin"
+    PF_CONSOLE_AUTHENTICATION: "none"
+
+  services:
+    https:
+      servicePort: 9031
+      containerPort: 9031
+      dataService: true
+
+# -----------------------------------------------------------------------------
+# PingAccess Admin - API Gateway Admin Console
+# -----------------------------------------------------------------------------
+pingaccess-admin:
+  enabled: true
+  name: pingaccess-admin
+
+  workload:
+    type: StatefulSet
+
+  container:
+    replicaCount: 1
+    resources:
+      requests:
+        cpu: 250m
+        memory: 512Mi
+      limits:
+        cpu: 1
+        memory: 1Gi
+
+  envs:
+    PA_ADMIN_PASSWORD: "PingAccess123!"
+    OPERATIONAL_MODE: "STANDALONE"
+    MAX_HEAP_SIZE: "512m"
+
+  services:
+    https:
+      servicePort: 9000
+      containerPort: 9000
+      dataService: true
+    clusterconfig:
+      servicePort: 9090
+      containerPort: 9090
+      clusterService: true
+
+  persistentvolume:
+    enabled: true
+    volumes:
+      out:
+        mountPath: /opt/out
+        persistentVolumeClaim:
+          accessModes:
+            - ReadWriteOnce
+          storageClassName: standard-rwo
+          resources:
+            requests:
+              storage: 2Gi
+
+# -----------------------------------------------------------------------------
+# PingAccess Engine - API Gateway Runtime
+# -----------------------------------------------------------------------------
+pingaccess-engine:
+  enabled: true
+  name: pingaccess-engine
+
+  # Disable Istio sidecar at deployment level
+  annotations:
+    sidecar.istio.io/inject: "false"
+
+  # Disable Istio sidecar at pod template level
+  workload:
+    annotations:
+      sidecar.istio.io/inject: "false"
+
+  container:
+    replicaCount: 1
+    resources:
+      requests:
+        cpu: 250m
+        memory: 512Mi
+      limits:
+        cpu: 1
+        memory: 1Gi
+
+  envs:
+    OPERATIONAL_MODE: "STANDALONE"
+    MAX_HEAP_SIZE: "512m"
+    PA_ADMIN_PUBLIC_HOSTNAME: "pingaccess-admin"
+
+  services:
+    https:
+      servicePort: 3000
+      containerPort: 3000
+      dataService: true
