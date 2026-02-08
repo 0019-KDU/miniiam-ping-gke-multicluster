@@ -1,0 +1,47 @@
+# =============================================================================
+# Cross-Cluster Service Aliases for GKE-EUROPE
+# These ExternalName services redirect local service names to clusterset.local
+# Deploy to GKE-EUROPE only (secondary cluster)
+# =============================================================================
+
+---
+# PingAccess Admin - Redirect to gke-asia via MCS
+apiVersion: v1
+kind: Service
+metadata:
+  name: pingaccess-admin
+  namespace: ping-iam
+  labels:
+    app.kubernetes.io/part-of: ping-iam
+    app.kubernetes.io/component: cross-cluster-alias
+spec:
+  type: ExternalName
+  externalName: pingaccess-admin.ping-iam.svc.clusterset.local
+
+---
+# PingAccess Admin Cluster (headless) - Redirect to gke-asia via MCS
+apiVersion: v1
+kind: Service
+metadata:
+  name: pingaccess-admin-cluster
+  namespace: ping-iam
+  labels:
+    app.kubernetes.io/part-of: ping-iam
+    app.kubernetes.io/component: cross-cluster-alias
+spec:
+  type: ExternalName
+  externalName: pingaccess-admin-cluster.ping-iam.svc.clusterset.local
+
+---
+# PingFederate Admin - Redirect to gke-asia via MCS (if needed)
+apiVersion: v1
+kind: Service
+metadata:
+  name: pingfederate-admin
+  namespace: ping-iam
+  labels:
+    app.kubernetes.io/part-of: ping-iam
+    app.kubernetes.io/component: cross-cluster-alias
+spec:
+  type: ExternalName
+  externalName: pingfederate-admin.ping-iam.svc.clusterset.local

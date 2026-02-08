@@ -25,11 +25,32 @@ metadata:
   name: pingdirectory-cluster
   namespace: ping-iam
 ---
+# PingFederate Admin - Configuration management (gke-asia only)
+apiVersion: net.gke.io/v1
+kind: ServiceExport
+metadata:
+  name: pingfederate-admin
+  namespace: ping-iam
+---
 # PingFederate Engine - OIDC runtime
 apiVersion: net.gke.io/v1
 kind: ServiceExport
 metadata:
   name: pingfederate-engine
+  namespace: ping-iam
+---
+# PingAccess Admin - Configuration management (gke-asia only)
+apiVersion: net.gke.io/v1
+kind: ServiceExport
+metadata:
+  name: pingaccess-admin
+  namespace: ping-iam
+---
+# PingAccess Admin Cluster (headless) - for multi-region clustering
+apiVersion: net.gke.io/v1
+kind: ServiceExport
+metadata:
+  name: pingaccess-admin-cluster
   namespace: ping-iam
 ---
 # PingAccess Engine - API Gateway runtime

@@ -1,0 +1,149 @@
+# =============================================================================
+# Istio Configuration for PingDirectory
+# Purpose: Enable sidecar while bypassing LDAP/Replication ports from mTLS
+# Apply to: Both clusters (gke-asia and gke-europe)
+# =============================================================================
+
+---
+# PeerAuthentication: PERMISSIVE mode with port-level DISABLE for LDAP ports
+# This allows LDAP traffic to bypass Istio mTLS while other traffic uses mesh
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: pingdirectory-ldap-permissive
+  namespace: ping-iam
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: pingdirectory
+  mtls:
+    mode: PERMISSIVE
+  portLevelMtls:
+    "1389":    # LDAP
+      mode: DISABLE
+    "1636":    # LDAPS
+      mode: DISABLE
+    "8989":    # Replication
+      mode: DISABLE
+
+---
+# DestinationRule for local cluster traffic
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: pingdirectory-local
+  namespace: ping-iam
+spec:
+  host: pingdirectory.ping-iam.svc.cluster.local
+  trafficPolicy:
+    tls:
+      mode: ISTIO_MUTUAL
+    portLevelSettings:
+      - port:
+          number: 1389
+        tls:
+          mode: DISABLE
+      - port:
+          number: 1636
+        tls:
+          mode: DISABLE
+      - port:
+          number: 8989
+        tls:
+          mode: DISABLE
+
+---
+# DestinationRule for clusterset.local (MCS cross-cluster)
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: pingdirectory-clusterset
+  namespace: ping-iam
+spec:
+  host: pingdirectory.ping-iam.svc.clusterset.local
+  trafficPolicy:
+    tls:
+      mode: DISABLE
+
+---
+# DestinationRule for headless service clusterset.local
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: pingdirectory-cluster-clusterset
+  namespace: ping-iam
+spec:
+  host: pingdirectory-cluster.ping-iam.svc.clusterset.local
+  trafficPolicy:
+    tls:
+      mode: DISABLE
+
+---
+# DestinationRule for MCS gateway
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: mcs-gateway-pingdirectory
+  namespace: ping-iam
+spec:
+  host: "*.ping-iam.svc.cluster.local"
+  trafficPolicy:
+    portLevelSettings:
+      - port:
+          number: 1389
+        tls:
+          mode: DISABLE
+      - port:
+          number: 1636
+        tls:
+          mode: DISABLE
+      - port:
+          number: 8989
+        tls:
+          mode: DISABLE
+
+---
+# ServiceEntry for clusterset.local DNS resolution
+apiVersion: networking.istio.io/v1beta1
+kind: ServiceEntry
+metadata:
+  name: pingdirectory-clusterset-entry
+  namespace: ping-iam
+spec:
+  hosts:
+    - pingdirectory.ping-iam.svc.clusterset.local
+  location: MESH_INTERNAL
+  resolution: DNS
+  ports:
+    - number: 1389
+      name: tcp-ldap
+      protocol: TCP
+    - number: 1636
+      name: tcp-ldaps
+      protocol: TCP
+    - number: 8989
+      name: tcp-replication
+      protocol: TCP
+    - number: 1443
+      name: https
+      protocol: HTTPS
+
+---
+# ServiceEntry for headless service clusterset.local
+apiVersion: networking.istio.io/v1beta1
+kind: ServiceEntry
+metadata:
+  name: pingdirectory-cluster-clusterset-entry
+  namespace: ping-iam
+spec:
+  hosts:
+    - pingdirectory-cluster.ping-iam.svc.clusterset.local
+  location: MESH_INTERNAL
+  resolution: DNS
+  ports:
+    - number: 1636
+      name: tcp-ldaps
+      protocol: TCP
+    - number: 8989
+      name: tcp-replication
+      protocol: TCP

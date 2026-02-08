@@ -1,7 +1,7 @@
 # =============================================================================
-# PingDirectory Helm Values - GKE-EUROPE (NON-SEED CLUSTER)
-# Chart: pingidentity/ping-devops
-# Purpose: Multi-master replication non-seed, joins gke-asia topology
+# Ping Identity Full Stack - GKE-EUROPE (SECONDARY CLUSTER)
+# Includes: PingDirectory (non-seed), PingFederate Engine, PingAccess Engine
+# Note: Admin consoles are in gke-asia, only engines here for HA
 # =============================================================================
 
 global:
@@ -20,26 +20,19 @@ global:
   labels:
     app.kubernetes.io/part-of: ping-iam
 
-# Disable other Ping products
+# Disable Admin consoles in secondary cluster
 pingfederate-admin:
-  enabled: false
-pingfederate-engine:
   enabled: false
 pingaccess-admin:
   enabled: false
-pingaccess-engine:
-  enabled: false
 
 # =============================================================================
-# PingDirectory Configuration
+# PingDirectory Configuration (Non-Seed Cluster)
 # =============================================================================
 pingdirectory:
   enabled: true
   name: pingdirectory
 
-  # ---------------------------------------------------------------------------
-  # Workload Configuration
-  # ---------------------------------------------------------------------------
   workload:
     type: StatefulSet
     annotations:
@@ -48,9 +41,6 @@ pingdirectory:
       traffic.sidecar.istio.io/excludeInboundPorts: "1389,1636,8989,15020"
       traffic.sidecar.istio.io/excludeOutboundPorts: "1389,1636,8989"
 
-  # ---------------------------------------------------------------------------
-  # Container Configuration
-  # ---------------------------------------------------------------------------
   container:
     replicaCount: 1
     resources:
@@ -93,47 +83,27 @@ pingdirectory:
         successThreshold: 1
         failureThreshold: 180
 
-  # ---------------------------------------------------------------------------
-  # Environment Variables
-  # ---------------------------------------------------------------------------
   envs:
-    # ===== CLUSTER IDENTIFICATION =====
     K8S_CLUSTER: "gke-europe"
-    # CRITICAL: Points to gke-asia as topology master
     K8S_SEED_CLUSTER: "gke-asia"
     K8S_CLUSTERS: "gke-asia,gke-europe"
     K8S_POD_HOSTNAME_PREFIX: "pingdirectory-"
-    # GKE Fleet uses cluster-specific domain, not cluster.local
     K8S_POD_HOSTNAME_SUFFIX: ".pingdirectory-cluster.ping-iam.svc.gke-europe.local"
     PD_CLUSTER_NAME: "gke-europe"
-
-    # ===== LDAP CONFIGURATION =====
-    # MUST MATCH SEED CLUSTER VALUES
     ROOT_USER_DN: "cn=administrator"
     ROOT_USER_PASSWORD: "2FederateM0re"
     USER_BASE_DN: "dc=example,dc=com"
     MAX_HEAP_SIZE: "768m"
-
-    # ===== PORT CONFIGURATION =====
     LDAP_PORT: "1389"
     LDAPS_PORT: "1636"
     REPLICATION_PORT: "8989"
     HTTPS_PORT: "1443"
-
-    # ===== REPLICATION SETTINGS =====
     ORCHESTRATION_TYPE: "KUBERNETES"
-
-    # ===== CROSS-CLUSTER SEED DISCOVERY =====
-    # Uses MCS clusterset.local DNS for cross-cluster resolution
     K8S_SEED_HOSTNAME_PREFIX: "pingdirectory-"
-    # CRITICAL: Use gke-asia.local domain for cross-cluster resolution
     K8S_SEED_HOSTNAME_SUFFIX: ".pingdirectory-cluster.ping-iam.svc.gke-asia.local"
     K8S_SEED_LDAPS_SERVICE: "pingdirectory-cluster.ping-iam.svc.clusterset.local"
     K8S_SEED_LDAPS_PORT: "1636"
 
-  # ---------------------------------------------------------------------------
-  # Service Configuration
-  # ---------------------------------------------------------------------------
   services:
     ldap:
       servicePort: 1389
@@ -152,9 +122,6 @@ pingdirectory:
       containerPort: 8989
       clusterService: true
 
-  # ---------------------------------------------------------------------------
-  # Persistent Volume Configuration
-  # ---------------------------------------------------------------------------
   persistentvolume:
     enabled: true
     volumes:
@@ -167,3 +134,70 @@ pingdirectory:
           resources:
             requests:
               storage: 5Gi
+
+# =============================================================================
+# PingFederate Engine Configuration (Engine Only - connects to local PD)
+# =============================================================================
+pingfederate-engine:
+  enabled: true
+  name: pingfederate-engine
+
+  workload:
+    type: Deployment
+    annotations:
+      sidecar.istio.io/inject: "true"
+      proxy.istio.io/config: '{"holdApplicationUntilProxyStarts": true}'
+
+  container:
+    replicaCount: 1
+    resources:
+      requests:
+        cpu: 500m
+        memory: 1Gi
+      limits:
+        cpu: 2
+        memory: 2Gi
+    waitFor: null
+
+  envs:
+    SERVER_PROFILE_URL: ""
+    OPERATIONAL_MODE: "STANDALONE"
+    PF_ADMIN_USER_USERNAME: "administrator"
+    PF_ADMIN_USER_PASSWORD: "2FederateM0re"
+    PF_LDAP_USERNAME: "cn=administrator"
+    PF_LDAP_PASSWORD: "2FederateM0re"
+    PF_LDAP_HOST: "pingdirectory"
+    PF_LDAP_PORT: "1636"
+    PF_USER_BASE_DN: "dc=example,dc=com"
+
+# =============================================================================
+# PingAccess Engine Configuration (Engine Only - connects to admin in gke-asia)
+# =============================================================================
+pingaccess-engine:
+  enabled: true
+  name: pingaccess-engine
+
+  workload:
+    type: Deployment
+    annotations:
+      sidecar.istio.io/inject: "true"
+      proxy.istio.io/config: '{"holdApplicationUntilProxyStarts": true}'
+
+  container:
+    replicaCount: 1
+    resources:
+      requests:
+        cpu: 500m
+        memory: 1Gi
+      limits:
+        cpu: 2
+        memory: 2Gi
+    waitFor: null
+
+  envs:
+    SERVER_PROFILE_URL: ""
+    PA_ADMIN_USER_USERNAME: "administrator"
+    PA_ADMIN_USER_PASSWORD: "2FederateM0re"
+    # Cross-cluster admin connection via MCS
+    PA_ADMIN_HOST: "pingaccess-admin.ping-iam.svc.clusterset.local"
+    PA_ADMIN_PORT: "9000"

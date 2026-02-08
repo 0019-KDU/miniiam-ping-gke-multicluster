@@ -1017,16 +1017,25 @@ kubectl get pods -n ping-iam -o jsonpath='{.items[*].spec.containers[*].name}'
 miniiam-ping-gke-multicluster/
 ├── k8s/
 │   ├── base/
-│   │   ├── ping-devops-values.yaml      # Base Helm values
-│   │   ├── istio-pingdirectory.yaml     # Istio traffic config
-│   │   └── kiali-config.yaml            # Kiali dashboard config
+│   │   ├── backend-api.yaml             # Backend API Deployment + Service
+│   │   ├── devops-secret.yaml           # Ping DevOps credentials secret
+│   │   ├── gateway.yaml                 # GKE Gateway API configuration
+│   │   ├── istio-config.yaml            # Istio traffic policies (PeerAuth, DestinationRule)
+│   │   ├── kustomization.yaml           # Kustomize base configuration
+│   │   ├── namespace.yaml               # ping-iam namespace definition
+│   │   ├── react-app.yaml               # React frontend Deployment + Service
+│   │   └── service-export.yaml          # MCS ServiceExports for cross-cluster discovery
 │   └── overlays/
 │       ├── gke-asia/
-│       │   └── values-pingdirectory.yaml # Asia-specific values
+│       │   ├── values-pingdirectory.yaml # PingDirectory only (seed cluster)
+│       │   └── values-ping-full.yaml     # Full stack: PD + PF Admin/Engine + PA Admin/Engine
 │       └── gke-europe/
-│           └── values-pingdirectory.yaml # Europe-specific values
-└── docs/
-    └── GKE-MultiCluster-PingDirectory-Technical-Guide.md
+│           ├── cross-cluster-services.yaml # ExternalName services for cross-cluster admin access
+│           ├── values-pingdirectory.yaml   # PingDirectory only (non-seed cluster)
+│           └── values-ping-full.yaml       # Full stack: PD + PF Engine + PA Engine (no admins)
+├── ping-iam-lab/                          # Docker Compose local development environment
+├── README.md                              # This documentation
+└── TRAFFIC-FLOW.md                        # Traffic flow analysis and architecture diagrams
 ```
 
 ### 13.4 Quick Reference Commands

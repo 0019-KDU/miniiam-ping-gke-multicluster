@@ -392,13 +392,19 @@ Backend-API receives request
 │  ┌──────────────────────────────┐    ┌──────────────────────────────┐       │
 │  │     GKE-ASIA (Primary)       │    │    GKE-EUROPE (Secondary)    │       │
 │  │                              │    │                              │       │
-│  │  ServiceExport:              │    │  ServiceExport:              │       │
+│  │  ServiceExport (all):        │    │  ServiceExport (all):        │       │
 │  │  • pingdirectory             │    │  • pingdirectory             │       │
 │  │  • pingdirectory-cluster     │    │  • pingdirectory-cluster     │       │
-│  │  • pingfederate-engine       │    │  • pingfederate-engine       │       │
-│  │  • pingaccess-engine         │    │  • pingaccess-engine         │       │
-│  │  • react-app                 │    │  • react-app                 │       │
-│  │  • backend-api               │    │  • backend-api               │       │
+│  │  • pingfederate-admin        │    │  • pingfederate-engine       │       │
+│  │  • pingfederate-engine       │    │  • pingaccess-engine         │       │
+│  │  • pingaccess-admin          │    │  • react-app                 │       │
+│  │  • pingaccess-admin-cluster  │    │  • backend-api               │       │
+│  │  • pingaccess-engine         │    │                              │       │
+│  │  • react-app                 │    │  ExternalName (aliases):     │       │
+│  │  • backend-api               │    │  • pingaccess-admin →        │       │
+│  │                              │    │    *.clusterset.local        │       │
+│  │                              │    │  • pingfederate-admin →      │       │
+│  │                              │    │    *.clusterset.local        │       │
 │  └──────────────────────────────┘    └──────────────────────────────┘       │
 │                                                                              │
 │  Cross-Cluster DNS Resolution:                                               │
@@ -629,3 +635,37 @@ Note: LDAP replication traffic (ports 1389, 1636, 8989) is excluded from Envoy p
 
 *Generated: Traffic Flow Analysis for Ping IAM Multi-Cluster Architecture*
 *Architecture: GKE Gateway API + Istio Envoy Sidecar Integration*
+
+---
+
+## 📁 Current Project Structure
+
+```
+k8s/
+├── base/
+│   ├── backend-api.yaml             # Backend API Deployment + Service
+│   ├── devops-secret.yaml           # Ping DevOps credentials
+│   ├── gateway.yaml                 # GKE Gateway API configuration
+│   ├── istio-config.yaml            # Istio PeerAuthentication & DestinationRules
+│   ├── kustomization.yaml           # Kustomize base
+│   ├── namespace.yaml               # ping-iam namespace
+│   ├── react-app.yaml               # React frontend Deployment + Service
+│   └── service-export.yaml          # MCS ServiceExports for cross-cluster discovery
+└── overlays/
+    ├── gke-asia/                    # PRIMARY CLUSTER (Seed)
+    │   ├── values-pingdirectory.yaml # PingDirectory only
+    │   └── values-ping-full.yaml     # Full: PD + PF (Admin+Engine) + PA (Admin+Engine)
+    └── gke-europe/                  # SECONDARY CLUSTER (Non-Seed)
+        ├── cross-cluster-services.yaml # ExternalName for admin access
+        ├── values-pingdirectory.yaml   # PingDirectory only
+        └── values-ping-full.yaml       # Full: PD + PF Engine + PA Engine (no admins)
+```
+
+### Cluster Role Summary
+
+| Cluster | Role | Components |
+|---------|------|------------|
+| **gke-asia** | Primary/Seed | PingDirectory (seed), PingFederate Admin+Engine, PingAccess Admin+Engine |
+| **gke-europe** | Secondary | PingDirectory (replica), PingFederate Engine, PingAccess Engine |
+
+Note: Admin consoles are centralized in gke-asia. Engines in gke-europe connect to admins via MCS `clusterset.local` DNS.

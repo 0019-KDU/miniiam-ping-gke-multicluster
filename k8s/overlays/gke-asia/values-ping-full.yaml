@@ -1,0 +1,277 @@
+# =============================================================================
+# Ping Identity Full Stack - GKE-ASIA (PRIMARY CLUSTER)
+# Includes: PingDirectory, PingFederate Admin+Engine, PingAccess Admin+Engine
+# =============================================================================
+
+global:
+  addReleaseNameToResource: none
+  envs:
+    PING_IDENTITY_ACCEPT_EULA: "YES"
+  secretEnvs:
+    - secretRef:
+        name: devops-secret
+  image:
+    repository: pingidentity
+    pullPolicy: IfNotPresent
+    tag: "2512"
+  ingress:
+    enabled: false
+  labels:
+    app.kubernetes.io/part-of: ping-iam
+
+# =============================================================================
+# PingDirectory Configuration (Seed Cluster)
+# =============================================================================
+pingdirectory:
+  enabled: true
+  name: pingdirectory
+
+  workload:
+    type: StatefulSet
+    annotations:
+      sidecar.istio.io/inject: "true"
+      proxy.istio.io/config: '{"holdApplicationUntilProxyStarts": true}'
+      traffic.sidecar.istio.io/excludeInboundPorts: "1389,1636,8989,15020"
+      traffic.sidecar.istio.io/excludeOutboundPorts: "1389,1636,8989"
+
+  container:
+    replicaCount: 1
+    resources:
+      requests:
+        cpu: 500m
+        memory: 1Gi
+      limits:
+        cpu: 2
+        memory: 2Gi
+
+    probes:
+      livenessProbe:
+        exec:
+          command:
+            - /opt/liveness.sh
+        httpGet: null
+        initialDelaySeconds: 30
+        periodSeconds: 30
+        timeoutSeconds: 5
+        successThreshold: 1
+        failureThreshold: 4
+      readinessProbe:
+        exec:
+          command:
+            - /opt/readiness.sh
+        httpGet: null
+        initialDelaySeconds: 30
+        periodSeconds: 30
+        timeoutSeconds: 5
+        successThreshold: 1
+        failureThreshold: 4
+      startupProbe:
+        exec:
+          command:
+            - /opt/liveness.sh
+        httpGet: null
+        initialDelaySeconds: 30
+        periodSeconds: 10
+        timeoutSeconds: 5
+        successThreshold: 1
+        failureThreshold: 180
+
+  envs:
+    K8S_CLUSTER: "gke-asia"
+    K8S_SEED_CLUSTER: "gke-asia"
+    K8S_CLUSTERS: "gke-asia,gke-europe"
+    K8S_POD_HOSTNAME_PREFIX: "pingdirectory-"
+    K8S_POD_HOSTNAME_SUFFIX: ".pingdirectory-cluster.ping-iam.svc.gke-asia.local"
+    PD_CLUSTER_NAME: "gke-asia"
+    ROOT_USER_DN: "cn=administrator"
+    ROOT_USER_PASSWORD: "2FederateM0re"
+    USER_BASE_DN: "dc=example,dc=com"
+    MAX_HEAP_SIZE: "768m"
+    LDAP_PORT: "1389"
+    LDAPS_PORT: "1636"
+    REPLICATION_PORT: "8989"
+    HTTPS_PORT: "1443"
+    ORCHESTRATION_TYPE: "KUBERNETES"
+
+  services:
+    ldap:
+      servicePort: 1389
+      containerPort: 1389
+      dataService: true
+    ldaps:
+      servicePort: 1636
+      containerPort: 1636
+      dataService: true
+    https:
+      servicePort: 1443
+      containerPort: 1443
+      dataService: true
+    replication:
+      servicePort: 8989
+      containerPort: 8989
+      clusterService: true
+
+  persistentvolume:
+    enabled: true
+    volumes:
+      out:
+        mountPath: /opt/out
+        persistentVolumeClaim:
+          accessModes:
+            - ReadWriteOnce
+          storageClassName: standard-rwo
+          resources:
+            requests:
+              storage: 5Gi
+
+# =============================================================================
+# PingFederate Admin Configuration
+# =============================================================================
+pingfederate-admin:
+  enabled: true
+  name: pingfederate-admin
+
+  workload:
+    type: Deployment
+    annotations:
+      sidecar.istio.io/inject: "true"
+
+  container:
+    replicaCount: 1
+    resources:
+      requests:
+        cpu: 500m
+        memory: 1Gi
+      limits:
+        cpu: 2
+        memory: 2Gi
+
+  envs:
+    SERVER_PROFILE_URL: ""
+    OPERATIONAL_MODE: "STANDALONE"
+    PF_ADMIN_USER_USERNAME: "administrator"
+    PF_ADMIN_USER_PASSWORD: "2FederateM0re"
+    PF_LDAP_USERNAME: "cn=administrator"
+    PF_LDAP_PASSWORD: "2FederateM0re"
+    PF_LDAP_HOST: "pingdirectory"
+    PF_LDAP_PORT: "1636"
+    PF_USER_BASE_DN: "dc=example,dc=com"
+
+  persistentvolume:
+    enabled: true
+    volumes:
+      out:
+        mountPath: /opt/out
+        persistentVolumeClaim:
+          accessModes:
+            - ReadWriteOnce
+          storageClassName: standard-rwo
+          resources:
+            requests:
+              storage: 4Gi
+
+# =============================================================================
+# PingFederate Engine Configuration
+# =============================================================================
+pingfederate-engine:
+  enabled: true
+  name: pingfederate-engine
+
+  workload:
+    type: Deployment
+    annotations:
+      sidecar.istio.io/inject: "true"
+      proxy.istio.io/config: '{"holdApplicationUntilProxyStarts": true}'
+
+  container:
+    replicaCount: 1
+    resources:
+      requests:
+        cpu: 500m
+        memory: 1Gi
+      limits:
+        cpu: 2
+        memory: 2Gi
+    # Disable wait-for-admin init container (conflicts with Istio sidecar)
+    waitFor: null
+
+  envs:
+    SERVER_PROFILE_URL: ""
+    OPERATIONAL_MODE: "STANDALONE"
+    PF_ADMIN_USER_USERNAME: "administrator"
+    PF_ADMIN_USER_PASSWORD: "2FederateM0re"
+    PF_LDAP_USERNAME: "cn=administrator"
+    PF_LDAP_PASSWORD: "2FederateM0re"
+    PF_LDAP_HOST: "pingdirectory"
+    PF_LDAP_PORT: "1636"
+    PF_USER_BASE_DN: "dc=example,dc=com"
+
+# =============================================================================
+# PingAccess Admin Configuration
+# =============================================================================
+pingaccess-admin:
+  enabled: true
+  name: pingaccess-admin
+
+  workload:
+    type: Deployment
+    annotations:
+      sidecar.istio.io/inject: "true"
+
+  container:
+    replicaCount: 1
+    resources:
+      requests:
+        cpu: 500m
+        memory: 1Gi
+      limits:
+        cpu: 2
+        memory: 2Gi
+
+  envs:
+    SERVER_PROFILE_URL: ""
+    PA_ADMIN_USER_USERNAME: "administrator"
+    PA_ADMIN_USER_PASSWORD: "2FederateM0re"
+
+  persistentvolume:
+    enabled: true
+    volumes:
+      out:
+        mountPath: /opt/out
+        persistentVolumeClaim:
+          accessModes:
+            - ReadWriteOnce
+          storageClassName: standard-rwo
+          resources:
+            requests:
+              storage: 4Gi
+
+# =============================================================================
+# PingAccess Engine Configuration
+# =============================================================================
+pingaccess-engine:
+  enabled: true
+  name: pingaccess-engine
+
+  workload:
+    type: Deployment
+    annotations:
+      sidecar.istio.io/inject: "true"
+      proxy.istio.io/config: '{"holdApplicationUntilProxyStarts": true}'
+
+  container:
+    replicaCount: 1
+    resources:
+      requests:
+        cpu: 500m
+        memory: 1Gi
+      limits:
+        cpu: 2
+        memory: 2Gi
+    # Disable wait-for-admin init container (conflicts with Istio sidecar)
+    waitFor: null
+
+  envs:
+    SERVER_PROFILE_URL: ""
+    PA_ADMIN_USER_USERNAME: "administrator"
+    PA_ADMIN_USER_PASSWORD: "2FederateM0re"

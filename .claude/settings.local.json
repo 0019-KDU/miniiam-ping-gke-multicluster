@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(kubectl --context=gke_bold-lantern-480305-k3_europe-west1_gke-europe exec:*)"
+    ]
+  }
+}

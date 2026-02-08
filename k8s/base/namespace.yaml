@@ -4,5 +4,4 @@ metadata:
   name: ping-iam
   labels:
     istio.io/rev: asm-managed
-    app.kubernetes.io/name: ping-iam-lab
     app.kubernetes.io/part-of: ping-iam

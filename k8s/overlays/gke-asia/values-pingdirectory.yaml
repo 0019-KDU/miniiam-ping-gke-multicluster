@@ -1,48 +1,56 @@
 # =============================================================================
-# PingDirectory Multi-Region Values - GKE Asia (Seed Cluster)
-# Industry Best Practice: LoadBalancer per Pod + LDAP Port Exclusion
+# PingDirectory Helm Values - GKE-ASIA (SEED CLUSTER)
+# Chart: pingidentity/ping-devops
+# Purpose: Multi-master replication seed for cross-cluster topology
 # =============================================================================
 
-# -----------------------------------------------------------------------------
-# Global Configuration
-# -----------------------------------------------------------------------------
 global:
   addReleaseNameToResource: none
-
   envs:
     PING_IDENTITY_ACCEPT_EULA: "YES"
-
   secretEnvs:
     - secretRef:
         name: devops-secret
-
   image:
     repository: pingidentity
     pullPolicy: IfNotPresent
     tag: "2512"
-
   ingress:
     enabled: false
-
   labels:
     app.kubernetes.io/part-of: ping-iam
 
-# -----------------------------------------------------------------------------
-# PingDirectory - LDAP User Store with Multi-Region Replication
-# -----------------------------------------------------------------------------
+# Disable other Ping products
+pingfederate-admin:
+  enabled: false
+pingfederate-engine:
+  enabled: false
+pingaccess-admin:
+  enabled: false
+pingaccess-engine:
+  enabled: false
+
+# =============================================================================
+# PingDirectory Configuration
+# =============================================================================
 pingdirectory:
   enabled: true
   name: pingdirectory
 
+  # ---------------------------------------------------------------------------
+  # Workload Configuration
+  # ---------------------------------------------------------------------------
   workload:
     type: StatefulSet
-    # Istio sidecar annotations - KEEP sidecar but EXCLUDE LDAP ports
     annotations:
       sidecar.istio.io/inject: "true"
-      # Exclude LDAP ports from Istio proxy interception (industry best practice)
+      proxy.istio.io/config: '{"holdApplicationUntilProxyStarts": true}'
+      traffic.sidecar.istio.io/excludeInboundPorts: "1389,1636,8989,15020"
       traffic.sidecar.istio.io/excludeOutboundPorts: "1389,1636,8989"
-      traffic.sidecar.istio.io/excludeInboundPorts: "1389,1636,8989"
 
+  # ---------------------------------------------------------------------------
+  # Container Configuration
+  # ---------------------------------------------------------------------------
   container:
     replicaCount: 1
     resources:
@@ -53,28 +61,73 @@ pingdirectory:
         cpu: 2
         memory: 2Gi
 
-  # Multi-Region Replication Environment Variables
+    # CRITICAL: Probe configuration for PingDirectory
+    # NOTE: readinessProbe is handled by post-renderer (kustomize patch)
+    #       to use httpGet with /available-or-degraded-state endpoint
+    probes:
+      livenessProbe:
+        exec:
+          command:
+            - /opt/liveness.sh
+        httpGet: null
+        initialDelaySeconds: 30
+        periodSeconds: 30
+        timeoutSeconds: 5
+        successThreshold: 1
+        failureThreshold: 4
+      readinessProbe:
+        exec:
+          command:
+            - /opt/readiness.sh
+        httpGet: null
+        initialDelaySeconds: 30
+        periodSeconds: 30
+        timeoutSeconds: 5
+        successThreshold: 1
+        failureThreshold: 4
+      startupProbe:
+        exec:
+          command:
+            - /opt/liveness.sh
+        httpGet: null
+        initialDelaySeconds: 30
+        periodSeconds: 10
+        timeoutSeconds: 5
+        successThreshold: 1
+        failureThreshold: 180
+
+  # ---------------------------------------------------------------------------
+  # Environment Variables
+  # ---------------------------------------------------------------------------
   envs:
+    # ===== CLUSTER IDENTIFICATION =====
+    K8S_CLUSTER: "gke-asia"
+    K8S_SEED_CLUSTER: "gke-asia"
+    K8S_CLUSTERS: "gke-asia,gke-europe"
+    K8S_POD_HOSTNAME_PREFIX: "pingdirectory-"
+    # GKE Fleet uses cluster-specific domain, not cluster.local
+    K8S_POD_HOSTNAME_SUFFIX: ".pingdirectory-cluster.ping-iam.svc.gke-asia.local"
+    PD_CLUSTER_NAME: "gke-asia"
+
+    # ===== LDAP CONFIGURATION =====
     ROOT_USER_DN: "cn=administrator"
     ROOT_USER_PASSWORD: "2FederateM0re"
     USER_BASE_DN: "dc=example,dc=com"
     MAX_HEAP_SIZE: "768m"
-    # Unique instance name for this cluster (required for replication)
-    PD_CLUSTER_NAME: "gke-asia"
-    # Multi-cluster replication configuration
-    K8S_CLUSTERS: "gke-asia,gke-europe"
-    K8S_CLUSTER: "gke-asia"
-    K8S_SEED_CLUSTER: "gke-asia"
-    # Hostname pattern for cross-cluster DNS
-    K8S_POD_HOSTNAME_PREFIX: "pingdirectory-"
-    K8S_POD_HOSTNAME_SUFFIX: ".ping-iam.svc.cluster.local"
-    # Replication ports
-    REPLICATION_PORT: "8989"
-    LDAPS_PORT: "1636"
-    LDAP_PORT: "1389"
 
+    # ===== PORT CONFIGURATION =====
+    LDAP_PORT: "1389"
+    LDAPS_PORT: "1636"
+    REPLICATION_PORT: "8989"
+    HTTPS_PORT: "1443"
+
+    # ===== REPLICATION SETTINGS =====
+    ORCHESTRATION_TYPE: "KUBERNETES"
+
+  # ---------------------------------------------------------------------------
+  # Service Configuration
+  # ---------------------------------------------------------------------------
   services:
-    # Name ports with tcp- prefix for explicit Istio TCP handling
     ldap:
       servicePort: 1389
       containerPort: 1389
@@ -87,19 +140,14 @@ pingdirectory:
       servicePort: 1443
       containerPort: 1443
       dataService: true
-    # Replication service
     replication:
       servicePort: 8989
       containerPort: 8989
       clusterService: true
 
-  # Enable LoadBalancer per pod for cross-cluster replication
-  # This creates a separate LoadBalancer for each PingDirectory pod
-  # allowing direct addressing across clusters
-  # Note: This may need to be configured differently based on helm chart version
-  # services:
-  #   loadBalancerServicePerPod: true
-
+  # ---------------------------------------------------------------------------
+  # Persistent Volume Configuration
+  # ---------------------------------------------------------------------------
   persistentvolume:
     enabled: true
     volumes:
@@ -112,18 +160,3 @@ pingdirectory:
           resources:
             requests:
               storage: 5Gi
-
-# -----------------------------------------------------------------------------
-# Disable other components (they use base values)
-# -----------------------------------------------------------------------------
-pingfederate-admin:
-  enabled: false
-
-pingfederate-engine:
-  enabled: false
-
-pingaccess-admin:
-  enabled: false
-
-pingaccess-engine:
-  enabled: false
