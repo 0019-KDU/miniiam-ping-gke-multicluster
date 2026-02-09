@@ -3,7 +3,7 @@
 # Deploy to MCI config cluster (gke-asia) only
 #
 # Architecture:
-#   Internet → External LB (35.186.236.153) → Gateway → Services
+#   Internet → External LB → Gateway → Services
 #
 # Traffic Flow for OIDC:
 #   User → PingAccess Engine → PingFederate Engine → PingDirectory
@@ -55,7 +55,10 @@ spec:
             type: PathPrefix
             value: /
       backendRefs:
-        - name: pingaccess-engine
+        # Multi-cluster Gateway requires ServiceImport (not Service)
+        - group: net.gke.io
+          kind: ServiceImport
+          name: pingaccess-engine
           port: 3000
 
 ---
@@ -83,7 +86,10 @@ spec:
             type: PathPrefix
             value: /.well-known
       backendRefs:
-        - name: pingfederate-engine
+        # Multi-cluster Gateway requires ServiceImport (not Service)
+        - group: net.gke.io
+          kind: ServiceImport
+          name: pingfederate-engine
           port: 9031
     # PingFederate endpoints
     - matches:
@@ -91,7 +97,9 @@ spec:
             type: PathPrefix
             value: /pf
       backendRefs:
-        - name: pingfederate-engine
+        - group: net.gke.io
+          kind: ServiceImport
+          name: pingfederate-engine
           port: 9031
     # OAuth/OIDC Authorization Server endpoints
     - matches:
@@ -99,5 +107,84 @@ spec:
             type: PathPrefix
             value: /as
       backendRefs:
-        - name: pingfederate-engine
+        - group: net.gke.io
+          kind: ServiceImport
+          name: pingfederate-engine
           port: 9031
+
+---
+# =============================================================================
+# GCPBackendPolicy - PingAccess Engine
+# Configure backend to use HTTPS protocol for traffic
+# =============================================================================
+apiVersion: networking.gke.io/v1
+kind: GCPBackendPolicy
+metadata:
+  name: pingaccess-engine-backend
+  namespace: ping-iam
+spec:
+  default:
+    securityPolicy: ""
+    logging:
+      enabled: true
+      sampleRate: 1.0
+  targetRef:
+    group: net.gke.io
+    kind: ServiceImport
+    name: pingaccess-engine
+
+---
+# =============================================================================
+# HealthCheckPolicy - PingAccess Engine
+# Configure GCP health check to use HTTPS and correct endpoint
+# =============================================================================
+apiVersion: networking.gke.io/v1
+kind: HealthCheckPolicy
+metadata:
+  name: pingaccess-engine-healthcheck
+  namespace: ping-iam
+spec:
+  default:
+    checkIntervalSec: 15
+    timeoutSec: 5
+    healthyThreshold: 2
+    unhealthyThreshold: 3
+    logConfig:
+      enabled: true
+    config:
+      type: HTTPS
+      httpsHealthCheck:
+        port: 3000
+        requestPath: /pa/heartbeat.ping
+  targetRef:
+    group: net.gke.io
+    kind: ServiceImport
+    name: pingaccess-engine
+
+---
+# =============================================================================
+# HealthCheckPolicy - PingFederate Engine
+# Configure GCP health check to use HTTPS and correct endpoint
+# =============================================================================
+apiVersion: networking.gke.io/v1
+kind: HealthCheckPolicy
+metadata:
+  name: pingfederate-engine-healthcheck
+  namespace: ping-iam
+spec:
+  default:
+    checkIntervalSec: 15
+    timeoutSec: 5
+    healthyThreshold: 2
+    unhealthyThreshold: 3
+    logConfig:
+      enabled: true
+    config:
+      type: HTTPS
+      httpsHealthCheck:
+        port: 9031
+        requestPath: /pf/heartbeat.ping
+  targetRef:
+    group: net.gke.io
+    kind: ServiceImport
+    name: pingfederate-engine

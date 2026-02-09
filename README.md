@@ -1033,6 +1033,11 @@ miniiam-ping-gke-multicluster/
 │           ├── cross-cluster-services.yaml # ExternalName services for cross-cluster admin access
 │           ├── values-pingdirectory.yaml   # PingDirectory only (non-seed cluster)
 │           └── values-ping-full.yaml       # Full stack: PD + PF Engine + PA Engine (no admins)
+├── docs/
+│   ├── ARCHITECTURE.md                    # System architecture and component design
+│   ├── COMMANDS.md                        # All kubectl commands reference
+│   ├── NETWORK.md                         # Network configuration guide
+│   └── PING-STACK.md                      # Ping Identity component integration
 ├── ping-iam-lab/                          # Docker Compose local development environment
 ├── README.md                              # This documentation
 └── TRAFFIC-FLOW.md                        # Traffic flow analysis and architecture diagrams

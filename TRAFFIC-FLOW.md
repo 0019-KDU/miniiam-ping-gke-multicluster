@@ -1,6 +1,6 @@
 # 🔄 Traffic Flow Analysis - Ping IAM Multi-Cluster Architecture
 
-## 📊 Architecture Overview: GKE Gateway API + Istio Envoy Sidecar Proxy
+## 📊 Architecture Overview: GKE Gateway API + Istio Envoy Sidecar Proxy 
 
 Your architecture uses a **two-layer proxy model**:
 
@@ -22,7 +22,7 @@ Your architecture uses a **two-layer proxy model**:
 │  ╠═══════════════════════════════════════════════════════════════════════════════════╣  │
 │  ║  Google Cloud External L7 Load Balancer                                           ║  │
 │  ║  • GatewayClass: gke-l7-global-external-managed-mc (Multi-Cluster)                ║  │
-│  ║  • External IP: 35.186.236.153                                                    ║  │
+│  ║  • External IP: 34.36.200.69                                                    ║  │
 │  ║  • Protocol: HTTP (Port 80)                                                       ║  │
 │  ║  • Routing: HTTPRoute resources define path-based routing                         ║  │
 │  ╚═══════════════════════════════════════════════════════════════════════════════════╝  │
@@ -166,7 +166,7 @@ User Browser
 │  ┌───────────────────────────────────────────────────────────────────┐  │
 │  │  Google Cloud External L7 Load Balancer                           │  │
 │  │  • NOT Envoy - This is Google's own proxy infrastructure          │  │
-│  │  • Global anycast IP: 35.186.236.153                              │  │
+│  │  • Global anycast IP: 34.36.200.69                              │  │
 │  │  • HTTPRoute: pingaccess-main-route (path: /*)                    │  │
 │  └───────────────────────────────────────────────────────────────────┘  │
 └─────────────────────────────────────┬───────────────────────────────────┘
@@ -641,24 +641,33 @@ Note: LDAP replication traffic (ports 1389, 1636, 8989) is excluded from Envoy p
 ## 📁 Current Project Structure
 
 ```
-k8s/
-├── base/
-│   ├── backend-api.yaml             # Backend API Deployment + Service
-│   ├── devops-secret.yaml           # Ping DevOps credentials
-│   ├── gateway.yaml                 # GKE Gateway API configuration
-│   ├── istio-config.yaml            # Istio PeerAuthentication & DestinationRules
-│   ├── kustomization.yaml           # Kustomize base
-│   ├── namespace.yaml               # ping-iam namespace
-│   ├── react-app.yaml               # React frontend Deployment + Service
-│   └── service-export.yaml          # MCS ServiceExports for cross-cluster discovery
-└── overlays/
-    ├── gke-asia/                    # PRIMARY CLUSTER (Seed)
-    │   ├── values-pingdirectory.yaml # PingDirectory only
-    │   └── values-ping-full.yaml     # Full: PD + PF (Admin+Engine) + PA (Admin+Engine)
-    └── gke-europe/                  # SECONDARY CLUSTER (Non-Seed)
-        ├── cross-cluster-services.yaml # ExternalName for admin access
-        ├── values-pingdirectory.yaml   # PingDirectory only
-        └── values-ping-full.yaml       # Full: PD + PF Engine + PA Engine (no admins)
+miniiam-ping-gke-multicluster/
+├── docs/
+│   ├── ARCHITECTURE.md              # System architecture and component design
+│   ├── COMMANDS.md                  # All kubectl commands reference
+│   ├── NETWORK.md                   # Network configuration guide
+│   └── PING-STACK.md                # Ping Identity component integration
+├── k8s/
+│   ├── base/
+│   │   ├── backend-api.yaml         # Backend API Deployment + Service
+│   │   ├── devops-secret.yaml       # Ping DevOps credentials
+│   │   ├── gateway.yaml             # GKE Gateway API + HealthCheckPolicy
+│   │   ├── istio-config.yaml        # Istio PeerAuthentication & DestinationRules
+│   │   ├── kustomization.yaml       # Kustomize base
+│   │   ├── namespace.yaml           # ping-iam namespace
+│   │   ├── react-app.yaml           # React frontend Deployment + Service
+│   │   └── service-export.yaml      # MCS ServiceExports for cross-cluster discovery
+│   └── overlays/
+│       ├── gke-asia/                # PRIMARY CLUSTER (Seed)
+│       │   ├── values-pingdirectory.yaml
+│       │   └── values-ping-full.yaml
+│       └── gke-europe/              # SECONDARY CLUSTER (Non-Seed)
+│           ├── cross-cluster-services.yaml
+│           ├── values-pingdirectory.yaml
+│           └── values-ping-full.yaml
+├── ping-iam-lab/                    # Docker Compose local development
+├── README.md                        # Main documentation
+└── TRAFFIC-FLOW.md                  # This file
 ```
 
 ### Cluster Role Summary

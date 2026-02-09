@@ -1,12 +1,12 @@
 # =============================================================================
-# Istio Configuration for PingDirectory
-# Purpose: Enable sidecar while bypassing LDAP/Replication ports from mTLS
+# Istio Configuration for Ping IAM Services
+# Purpose: Enable sidecar while allowing GCP LB health checks and traffic
 # Apply to: Both clusters (gke-asia and gke-europe)
 # =============================================================================
 
 ---
-# PeerAuthentication: PERMISSIVE mode with port-level DISABLE for LDAP ports
-# This allows LDAP traffic to bypass Istio mTLS while other traffic uses mesh
+# PeerAuthentication: PERMISSIVE mode for PingDirectory
+# Allows LDAP traffic to bypass Istio mTLS while other traffic uses mesh
 apiVersion: security.istio.io/v1beta1
 kind: PeerAuthentication
 metadata:
@@ -25,6 +25,36 @@ spec:
       mode: DISABLE
     "8989":    # Replication
       mode: DISABLE
+
+---
+# PeerAuthentication: PERMISSIVE mode for PingAccess Engine
+# Allows GCP LB to reach PingAccess directly on port 3000
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: pingaccess-engine-permissive
+  namespace: ping-iam
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: pingaccess-engine
+  mtls:
+    mode: PERMISSIVE
+
+---
+# PeerAuthentication: PERMISSIVE mode for PingFederate Engine
+# Allows GCP LB to reach PingFederate directly on port 9031
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: pingfederate-engine-permissive
+  namespace: ping-iam
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: pingfederate-engine
+  mtls:
+    mode: PERMISSIVE
 
 ---
 # DestinationRule for local cluster traffic
