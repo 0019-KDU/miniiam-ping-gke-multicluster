@@ -645,8 +645,11 @@ miniiam-ping-gke-multicluster/
 ├── docs/
 │   ├── ARCHITECTURE.md              # System architecture and component design
 │   ├── COMMANDS.md                  # All kubectl commands reference
+│   ├── ISTIO.md                     # Istio service mesh configuration guide
 │   ├── NETWORK.md                   # Network configuration guide
-│   └── PING-STACK.md                # Ping Identity component integration
+│   ├── PING-STACK.md                # Ping Identity component integration
+│   ├── REPLICATION.md               # PingDirectory replication and user management
+│   └── TRAFFIC-FLOW.md              # This file
 ├── k8s/
 │   ├── base/
 │   │   ├── backend-api.yaml         # Backend API Deployment + Service
@@ -666,8 +669,7 @@ miniiam-ping-gke-multicluster/
 │           ├── values-pingdirectory.yaml
 │           └── values-ping-full.yaml
 ├── ping-iam-lab/                    # Docker Compose local development
-├── README.md                        # Main documentation
-└── TRAFFIC-FLOW.md                  # This file
+└── README.md                        # Main documentation
 ```
 
 ### Cluster Role Summary

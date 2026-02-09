@@ -1036,11 +1036,13 @@ miniiam-ping-gke-multicluster/
 ├── docs/
 │   ├── ARCHITECTURE.md                    # System architecture and component design
 │   ├── COMMANDS.md                        # All kubectl commands reference
+│   ├── ISTIO.md                           # Istio service mesh configuration guide
 │   ├── NETWORK.md                         # Network configuration guide
-│   └── PING-STACK.md                      # Ping Identity component integration
+│   ├── PING-STACK.md                      # Ping Identity component integration
+│   ├── REPLICATION.md                     # PingDirectory replication and user management
+│   └── TRAFFIC-FLOW.md                    # Traffic flow analysis and architecture diagrams
 ├── ping-iam-lab/                          # Docker Compose local development environment
-├── README.md                              # This documentation
-└── TRAFFIC-FLOW.md                        # Traffic flow analysis and architecture diagrams
+└── README.md                              # This documentation
 ```
 
 ### 13.4 Quick Reference Commands
